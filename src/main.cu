@@ -1,11 +1,16 @@
 #include <iostream>
 #include <chrono>
-
 #include "vectorCPU.h"
 #include "vectorGPU.h"
-#define N 100000000 
+#include <cuda_profiler_api.h>
 // Host main routine0
-int main(){
+int main(int argc, char** argv){
+if(argc != 2){
+		std::cout << "Type number of elements .." << std::endl;
+		return -1;
+}
+
+int N = atoi(argv[1]);
 
 float *a,*b,*c;
 a = (float*)malloc(sizeof(float)*N);
@@ -57,6 +62,31 @@ std::cout << "Checking results .. " << std::endl;
  }
 
 std::cout << "All good!" << std::endl;
+std::cout << "Shared Memory Test" << std::endl;
+float *s_a,*s_b,*s_c;
+cudaMallocManaged(&s_a,sizeof(float)*N);
+cudaMallocManaged(&s_b,sizeof(float)*N);
+cudaMallocManaged(&s_c,sizeof(float)*N);
+cudaProfilerStop();
+// return 0; // Profiling won't work for shared memory
+for(int i=0;i<N;++i){
+s_a[i] = 1; s_b[i] = 2;
+}
+vectorAddGPU<<<grid_size,block_size>>>(s_a,s_b,s_c,N);
+cudaDeviceSynchronize();
+
+ for(int i=0;i<N;++i){
+ 		if (c[i] != s_c[i]){
+ 				std::cout << c[i] << "," << s_c[i] << std::endl;
+ 				std::cout << "Wrong Results .. :(" << i << std::endl;
+ 				return -1;
+ 		}
+ }
+
+std::cout << "All good shared! " << std::endl;
+std::cout << "Press enter to exit!" << std::endl;
+std::cin.get();
+return 0;
 free(a);
 free(b);
 free(c);
@@ -65,4 +95,8 @@ free(c_fromgpu);
 cudaFree(d_a);
 cudaFree(d_b);
 cudaFree(d_c);
+cudaFree(s_a);
+cudaFree(s_b);
+cudaFree(s_c);
+
 }
