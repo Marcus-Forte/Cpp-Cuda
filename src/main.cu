@@ -31,7 +31,7 @@ std::chrono::time_point<std::chrono::high_resolution_clock> end = std::chrono::h
 for(int i=0;i<N;++i){
 		if(c[i] != 3.0f) {
 				std::cout << "CPU nope\n";
-				return -1;
+		exit(EXIT_FAILURE);
 		}
 }
 std::cout << "CPU OK -> " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " [ms]\n";
@@ -98,7 +98,7 @@ std::cout << "Checking results .. " << std::endl;
  		{
  				std::cout << c[i] << "," << c_fromgpu[i] << std::endl;
  				std::cout << "Wrong results! :( " << i << std::endl;
- 				return -1;
+		exit(EXIT_FAILURE);
  		}
  }
 
@@ -118,16 +118,18 @@ cudaDeviceSynchronize();
 
  for(int i=0;i<N;++i){
  		if (c[i] != s_c[i]){
- 				std::cout << c[i] << "," << s_c[i] << std::endl;
+ 				std::cout << c[i] << "," << s_c[i] << std::endl; // We can access as CPU memory.
  				std::cout << "Wrong Results .. :(" << i << std::endl;
- 				return -1;
+		exit(EXIT_FAILURE);
  		}
  }
 
 std::cout << "All good shared! " << std::endl;
+std::cout << "Total CPU memory used -> " << 3*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
+std::cout << "Total GPU memory used -> " << 6*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
 std::cout << "Press enter to exit!" << std::endl;
 std::cin.get();
-return 0;
+
 free(a);
 free(b);
 free(c);
@@ -139,5 +141,6 @@ cudaFree(d_c);
 cudaFree(s_a);
 cudaFree(s_b);
 cudaFree(s_c);
+return 0; 
 
 }
