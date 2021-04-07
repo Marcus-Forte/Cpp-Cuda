@@ -17,6 +17,11 @@ N = atoi(argv[1]);
 
 int nDevices;
 cudaGetDeviceCount(&nDevices);
+
+if (nDevices == 0){
+	std::cout << "No CUDA Devices found. Exiting" << std::endl;
+	exit(-1);
+}
 for (int i = 0;i<nDevices;++i){
 cudaDeviceProp prop;
 cudaGetDeviceProperties(&prop,i);
@@ -100,9 +105,8 @@ if(err != cudaSuccess){
 int block_size = 256; // 256
 int grid_size = (N + block_size - 1 )/block_size;
 std::cout << "grid size = " << grid_size << std::endl;
-//start = std::chrono::high_resolution_clock::now();
+start = std::chrono::high_resolution_clock::now();
 vectorAddGPU<<<grid_size,block_size>>>(d_a,d_b,d_c,N);
-//end = std::chrono::high_resolution_clock::now();
 err = cudaGetLastError();
 
 if(err != cudaSuccess){
@@ -113,11 +117,12 @@ if(err != cudaSuccess){
 
 
 cudaDeviceSynchronize();
+end = std::chrono::high_resolution_clock::now();
 
 float * c_fromgpu = (float*)malloc(sizeof(float)*N);
 cudaMemcpy(c_fromgpu,d_c,sizeof(float)*N,cudaMemcpyDeviceToHost);
 
-std::cout << "GPU OK " << std::endl; 
+std::cout << "GPU OK -> " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " [ms]\n";
 std::cout << "Checking results .. " << std::endl;
  for(int i=0;i<N;++i){
  		if (c[i] != c_fromgpu[i])

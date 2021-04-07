@@ -7,6 +7,6 @@ project(cmake_cuda LANGUAGES CUDA CXX)
 add_executable(cuda_exe src/main.cu src/vectorAdd.cpp src/vectorAdd.cu)
 
 # set_target_properties(cuda_exe PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET cuda_exe PROPERTY CUDA_ARCHITECTURES 30) # IMPORTANT !!!!
+# set_property(TARGET cuda_exe PROPERTY CUDA_ARCHITECTURES 60 61 62) # IMPORTANT ?!
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
