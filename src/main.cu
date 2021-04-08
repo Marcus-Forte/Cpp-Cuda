@@ -52,20 +52,29 @@ b = (float*)malloc(sizeof(float)*N);
 c = (float*)malloc(sizeof(float)*N);
 
 for(int i=0;i<N;++i){
-		a[i] = 1; b[i] = 2;
+		a[i] = i; b[i] = N-i;
 
 }
-std::chrono::time_point<std::chrono::high_resolution_clock> start = std::chrono::high_resolution_clock::now();
+
+cudaEvent_t start, stop;
+cudaEventCreate(&start);
+cudaEventCreate(&stop);
+
+cudaEventRecord(start, 0);
 vectorAddCPU(a,b,c,N);
-std::chrono::time_point<std::chrono::high_resolution_clock> end = std::chrono::high_resolution_clock::now();
-for(int i=0;i<N;++i){
-		if(c[i] != 3.0f) {
-				std::cout << "CPU nope\n";
-		exit(EXIT_FAILURE);
-		}
-}
-std::cout << "CPU OK -> " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " [ms]\n";
+cudaEventRecord(stop, 0);
+cudaEventSynchronize(stop);
+float cpu_elapsed_time_ms;
+cudaEventElapsedTime(&cpu_elapsed_time_ms, start, stop);
+
+std::cout << "CPU OK -> " << cpu_elapsed_time_ms << " [ms]\n";
+
+
+
+
+
 // Precisamos alocar memória na GPU
+
 float *d_a,*d_b,*d_c;
 cudaError_t err;
 err = cudaMalloc((void**)&d_a,sizeof(float)*N);
@@ -102,11 +111,12 @@ if(err != cudaSuccess){
 
 
 
-int block_size = 256; // 256
+int block_size = 32; // 256
 int grid_size = (N + block_size - 1 )/block_size;
 std::cout << "grid size = " << grid_size << std::endl;
-start = std::chrono::high_resolution_clock::now();
+cudaEventRecord(start, 0);
 vectorAddGPU<<<grid_size,block_size>>>(d_a,d_b,d_c,N);
+
 err = cudaGetLastError();
 
 if(err != cudaSuccess){
@@ -116,48 +126,59 @@ if(err != cudaSuccess){
 }
 
 
-cudaDeviceSynchronize();
-end = std::chrono::high_resolution_clock::now();
 
 float * c_fromgpu = (float*)malloc(sizeof(float)*N);
+
+cudaEventRecord(stop, 0);
 cudaMemcpy(c_fromgpu,d_c,sizeof(float)*N,cudaMemcpyDeviceToHost);
 
-std::cout << "GPU OK -> " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " [ms]\n";
+cudaDeviceSynchronize();
+
+// Event
+
+cudaEventSynchronize(stop);
+
+float gpu_elapsed_time_ms;
+cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+
+std::cout << "GPU OK -> " << gpu_elapsed_time_ms << " [ms]\n";
 std::cout << "Checking results .. " << std::endl;
  for(int i=0;i<N;++i){
  		if (c[i] != c_fromgpu[i])
  		{
  				std::cout << c[i] << "," << c_fromgpu[i] << std::endl;
  				std::cout << "Wrong results! :( " << i << std::endl;
-		exit(EXIT_FAILURE);
+				exit(EXIT_FAILURE);
  		}
  }
 
-std::cout << "All good!" << std::endl;
-std::cout << "Shared Memory Test" << std::endl;
-float *s_a,*s_b,*s_c;
-cudaMallocManaged(&s_a,sizeof(float)*N);
-cudaMallocManaged(&s_b,sizeof(float)*N);
-cudaMallocManaged(&s_c,sizeof(float)*N);
-// cudaProfilerStop();
-// return 0; // Profiling won't work for shared memory
-for(int i=0;i<N;++i){
-s_a[i] = 1; s_b[i] = 2;
-}
-vectorAddGPU<<<grid_size,block_size>>>(s_a,s_b,s_c,N);
-cudaDeviceSynchronize();
+ std::cout << "OK!\n";
 
- for(int i=0;i<N;++i){
- 		if (c[i] != s_c[i]){
- 				std::cout << c[i] << "," << s_c[i] << std::endl; // We can access as CPU memory.
- 				std::cout << "Wrong Results .. :(" << i << std::endl;
-		exit(EXIT_FAILURE);
- 		}
- }
+// std::cout << "All good!" << std::endl;
+// std::cout << "Shared Memory Test" << std::endl;
+// float *s_a,*s_b,*s_c;
+// cudaMallocManaged(&s_a,sizeof(float)*N);
+// cudaMallocManaged(&s_b,sizeof(float)*N);
+// cudaMallocManaged(&s_c,sizeof(float)*N);
+// // cudaProfilerStop();
+// // return 0; // Profiling won't work for shared memory
+// for(int i=0;i<N;++i){
+// s_a[i] = 1; s_b[i] = 2;
+// }
+// vectorAddGPU<<<grid_size,block_size>>>(s_a,s_b,s_c,N);
+// cudaDeviceSynchronize();
 
-std::cout << "All good shared! " << std::endl;
-std::cout << "Total CPU memory used -> " << 3*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
-std::cout << "Total GPU memory used -> " << 6*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
+//  for(int i=0;i<N;++i){
+//  		if (c[i] != s_c[i]){
+//  				std::cout << c[i] << "," << s_c[i] << std::endl; // We can access as CPU memory.
+//  				std::cout << "Wrong Results .. :(" << i << std::endl;
+// 		exit(EXIT_FAILURE);
+//  		}
+//  }
+
+// std::cout << "All good shared! " << std::endl;
+std::cout << "Total memory used -> " << 3*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
+// std::cout << "Total GPU memory used -> " << 6*sizeof(float)*N / (1000*1000) << " MB." << std::endl;
 std::cout << "Press enter to exit!" << std::endl;
 std::cin.get();
 
@@ -169,9 +190,9 @@ free(c_fromgpu);
 cudaFree(d_a);
 cudaFree(d_b);
 cudaFree(d_c);
-cudaFree(s_a);
-cudaFree(s_b);
-cudaFree(s_c);
+// cudaFree(s_a);
+// cudaFree(s_b);
+// cudaFree(s_c);
 return 0; 
 
 }
