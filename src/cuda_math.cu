@@ -100,6 +100,8 @@ void vectorAdd(const float* A,const float *B, float* C, int N){
 	// std::cout << "grid size = " << grid_size << std::endl;
 	
     cudaEventRecord(start, 0);
+
+	
 	singleThreadKernel<<<1,1>>>(d_a,d_b,d_c,N); // stupid
 
 	// vecAddKernel<<<grid_size,thread_per_block>>>(d_a,d_b,d_c,N); // Launch N threads. MAX = 1024
