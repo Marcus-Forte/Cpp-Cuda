@@ -48,6 +48,7 @@ void vectorAdd(const float* A,const float *B, float* C, int N){
     cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
+	
 
     
     // Mem Alloc
